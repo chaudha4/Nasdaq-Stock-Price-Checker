@@ -1,13 +1,10 @@
 'use strict';
 
 var bodyParser  = require('body-parser');
-var expect      = require('chai').expect;
 var cors        = require('cors');
 var express     = require('express');
 
 var apiRoutes         = require('./routes/api.js');
-var fccTestingRoutes  = require('./routes/fcctesting.js');
-var runner            = require('./test-runner');
 
 var MongoClient = require('mongodb').MongoClient;
 
@@ -28,8 +25,6 @@ app.route('/')
     res.sendFile(process.cwd() + '/views/index.html');
   });
 
-//For FCC testing purposes
-fccTestingRoutes(app);
 
 
 // Get a DB handle. We connect only once.
@@ -40,7 +35,7 @@ fccTestingRoutes(app);
 var connect2DB = function () {
   console.log("connect2DB_ver1")
   return new Promise(function(resolve, reject) {
-    MongoClient.connect(db_url, (err, db) => {
+    MongoClient.connect(db_url, { useUnifiedTopology: true }, (err, db) => {
       if (err) {
         reject(err);
       } else {
@@ -56,7 +51,7 @@ var connect2DB = function () {
 // and then would resume when someone uses this variable and calls then on it.
 var connect2DB_ver2 = new Promise(function(resolve, reject) {
     console.log("connect2DB_ver2")
-    MongoClient.connect(db_url, (err, db) => {
+    MongoClient.connect(db_url, { useUnifiedTopology: true }, (err, db) => {
       if (err) {
         reject(err);
       } else {
@@ -93,7 +88,8 @@ connect2DB_ver2
         console.log('Running Tests...');
         setTimeout(function () {
           try {
-            runner.run();
+            //runner.run();
+            console.log('No Tests to run');
           } catch(e) {
             var error = e;
               console.log('Tests are not valid:');
@@ -107,10 +103,4 @@ connect2DB_ver2
     console.log("Database Connection Failed", err);
   });//catch
  
-  
-
-
- 
-
-
 module.exports = app; //for testing

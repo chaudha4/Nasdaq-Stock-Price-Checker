@@ -6,10 +6,10 @@
 npm --version
 npm init
 npm install
-node server.js
+node server.js or npm start
 ```
 
-## Heroku deploy
+## Heroku deploy (if not using github)
 Make sure you have Heroku CLI installed. Check using `heroku --version` command
 
 ```
@@ -20,4 +20,8 @@ heroku ps:scale web=1
 heroku open
 heroku logs --tail
 ```
+
+## Heroku Automatic Deploys
+This repo is automatically deployed to heroku (from master branch). The deployed app is available at https://ancient-springs-25222.herokuapp.com/
+
 
