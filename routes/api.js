@@ -17,12 +17,6 @@ module.exports = function(app, db) {
   app.use(helmet.xssFilter()); // Mitigate the risk of XSS(Cross-site scripting)
   app.use(
     helmet.contentSecurityPolicy({
-      directives: {
-        //defaultSrc: ["'self'", 'https://chaudha4-stock-price-checker.glitch.me/'],
-        //styleSrc: ["'self'", 'https://repeated-alpaca.glitch.me/'],    // repeated-alpaca.glitch.me is proxy to get stock price.
-        scriptSrc: ["'self'", "repeated-alpaca.glitch.me"],
-        reportUri: "/report-violation" // Browsers will POST any CSP violations to your server.
-      },
       reportOnly: true
     })
   );

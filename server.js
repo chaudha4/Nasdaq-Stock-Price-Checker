@@ -1,9 +1,9 @@
 'use strict';
 
-var express     = require('express');
 var bodyParser  = require('body-parser');
 var expect      = require('chai').expect;
 var cors        = require('cors');
+var express     = require('express');
 
 var apiRoutes         = require('./routes/api.js');
 var fccTestingRoutes  = require('./routes/fcctesting.js');
@@ -11,6 +11,7 @@ var runner            = require('./test-runner');
 
 var MongoClient = require('mongodb').MongoClient;
 
+var db_url = "mongodb+srv://user001:SR9nRZ0gOr8uQJSs@cluster0-lskl2.mongodb.net/test?retryWrites=true&w=majority"
 
 var app = express();
 
@@ -39,7 +40,7 @@ fccTestingRoutes(app);
 var connect2DB = function () {
   console.log("connect2DB_ver1")
   return new Promise(function(resolve, reject) {
-    MongoClient.connect(process.env.DB, (err, db) => {
+    MongoClient.connect(db_url, (err, db) => {
       if (err) {
         reject(err);
       } else {
@@ -55,7 +56,7 @@ var connect2DB = function () {
 // and then would resume when someone uses this variable and calls then on it.
 var connect2DB_ver2 = new Promise(function(resolve, reject) {
     console.log("connect2DB_ver2")
-    MongoClient.connect(process.env.DB, (err, db) => {
+    MongoClient.connect(db_url, (err, db) => {
       if (err) {
         reject(err);
       } else {
@@ -85,8 +86,9 @@ connect2DB_ver2
   .then( () => {
     //Start our server and tests!
     console.log("Then #3 - Start Server")
-    app.listen(process.env.PORT || 3000, function () {
-      console.log("Listening on port " + process.env.PORT);
+    var port_used = process.env.PORT || 3001;
+    app.listen(port_used, function () {
+      console.log("Listening on port " + port_used);
       if(process.env.NODE_ENV==='test') {
         console.log('Running Tests...');
         setTimeout(function () {

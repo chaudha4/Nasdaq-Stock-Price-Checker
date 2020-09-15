@@ -1,13 +1,23 @@
-**Nasdaq Stock Price Checker**
-------
+# Nasdaq Stock Price Checker
 
-Project Stock Price Checker
 
-1) SET NODE_ENV to `test` without quotes and set DB to your mongo connection string
-2) Complete the project in `routes/api.js` or by creating a handler/controller
-3) You will add any security features to `server.js`
-4) You will create all of the functional tests in `tests/2_functional-tests.js`
+## Get started
+```
+npm --version
+npm init
+npm install
+node server.js
+```
 
-chaudha4-Stock-Price-Checker
+## Heroku deploy
+Make sure you have Heroku CLI installed. Check using `heroku --version` command
 
+```
+heroku login
+heroku create
+git push heroku master
+heroku ps:scale web=1
+heroku open
+heroku logs --tail
+```
 
