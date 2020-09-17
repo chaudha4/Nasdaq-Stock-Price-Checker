@@ -1,14 +1,15 @@
 "use strict";
 
+
+require('dotenv').config();
+
 var db_client =  null;
-var REDIS_URL = "REDIS_URL Not Set";
+var REDIS_URL = "REDIS_URL is not set"
 
 if (process.env.REDIS_URL) {
     REDIS_URL = process.env.REDIS_URL;
-    console.log("Redis URL updated for Heroku Cloud Deployment")
-} else {
-    console.log("Redis URL for test deployment")
 }
+
 console.log(REDIS_URL);
 
 
