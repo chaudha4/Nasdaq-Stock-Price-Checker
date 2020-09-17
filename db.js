@@ -1,7 +1,7 @@
 "use strict";
 
 var db_client =  null;
-var REDIS_URL = ""
+var REDIS_URL = "REDIS_URL Not Set";
 
 if (process.env.REDIS_URL) {
     REDIS_URL = process.env.REDIS_URL;
@@ -9,6 +9,7 @@ if (process.env.REDIS_URL) {
 } else {
     console.log("Redis URL for test deployment")
 }
+console.log(REDIS_URL);
 
 
 exports.connect = function (done) {

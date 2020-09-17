@@ -18,7 +18,7 @@ heroku create
 git push heroku master
 heroku ps:scale web=1
 heroku open
-heroku logs --tail
+heroku logs --tail --app ancient-springs-25222
 ```
 
 ## Heroku Automatic Deploys
