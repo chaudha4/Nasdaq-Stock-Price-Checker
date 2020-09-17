@@ -1,19 +1,11 @@
-/*
- *
- *
- *       Complete the API routing below
- *
- *
- */
-
 "use strict";
 
-var expect = require("chai").expect;
-var https = require("https");
-
+var https = require("https");   // Used to fetch Stock Price from a Proxy Server
 var helmet = require("helmet");
+var db = require("../db.js");
+var stockApi = require("./stock.js");
 
-module.exports = function(app, db) {
+module.exports = function(app, db_client) {
   app.use(helmet.xssFilter()); // Mitigate the risk of XSS(Cross-site scripting)
   app.use(
     helmet.contentSecurityPolicy({
@@ -28,177 +20,115 @@ module.exports = function(app, db) {
   }); //post 'report-violation'
 
   
-  function getStockPrice(url) {
-    return new Promise( (resolve, reject) => {
-      https.get(url, urlResp => {
-        if (urlResp.statusCode < 200 || urlResp.statusCode >= 300) {
-            return reject(new Error('statusCode=' + urlResp.statusCode));
-        }        
-        urlResp.setEncoding("utf8");
-        let body = "";
-        
-        urlResp.on("data", data => {
-          body += data;
-        });
-        
-        urlResp.on("end", () => {
-          body = JSON.parse(body);
-          let result = {
-            stock: body.symbol,
-            price: body.latestPrice,
-          };
-          
-          if (result.stock == undefined) {
-            reject(body);  // Stock not found
-          } else {        
-            resolve(result);
-          }
-        });
-        
-        urlResp.on("error", err => {
-          reject(err);
-        });
-        
-      }); //get  
-    }); //new Promise
-    
-  } //getStockPrice
-
-  function findOneStock(query) {
-    return new Promise ( (resolve, reject) => { 
-      db.db("FCC").collection("stocks").findOne(
-            { stock: query.stock }, // query
-            (err, item) => {
-              if (err) {
-                console.log("Query Failed to run", err);
-                reject(err);
-              } else {
-                console.log("Query Returned", item);
-                resolve(item);
-              }
-            }); //db
-    }); //Promise
-  } //findOneStock  
-  
-  function findAndUpdateOneStock(query) {
-    let updateStruct = {};
-    if (query.like) {
-      updateStruct.$push = {
-        ip: query.ip
-      }
-    }
-    
-    return new Promise ( (resolve, reject) => { 
-      db.db("FCC").collection("stocks").findAndModify(
-            { stock: query.stock }, // query
-            null, // sort order
-            //{ $push: { ip: query.ip } }, //update
-            updateStruct, //update
-            { upsert: true, new: true }, //options
-            (err, item) => {
-              if (err) {
-                console.log("Not Found", err);
-                reject(err);
-              } else {
-                console.log("Found", item);
-                resolve(item.value);
-              }
-            }); //db
-    }); //Promise
-  } //findAndUpdateOneStock
-  
-  function findAndUpdateOneStockV2(query) {
-    // In this version we use addToSet which adds a value to an array unless the value is already present
-    let updateStruct = {};
-    if (query.like) {
-      updateStruct.$addToSet = {        
-        ip: query.ip
-      }
-    }
-    
-    return new Promise ( (resolve, reject) => { 
-      db.db("FCC").collection("stocks").findAndModify(
-            { stock: query.stock }, // query
-            null, // sort order
-            //{ $addToSet: { ip: query.ip } }, //Add if not already there
-            updateStruct,
-            { upsert: true, new: true }, //options
-            (err, item) => {
-              if (err) {
-                console.log("Not Found", err);
-                reject(err);
-              } else {
-                console.log("Found", item);
-                resolve(item.value);
-              }
-            }); //db
-    }); //Promise
-  } //findAndUpdateOneStock
-  
   app.route("/api/stock-prices").get(function(req, res) {
     console.log("/GET called", req.route.methods, req.route.path, req.query);
 
-    if (typeof req.query.stock === "string") {
-      let url = `https://repeated-alpaca.glitch.me/v1/stock/${req.query.stock}/quote`; 
+    function afterGettingStockQuote(result) {
+      console.log("afterGettingStockQuote-", result)
+      if (result == null) {
+        res.send("");
+        return;   // This is still required.
+      }
 
-      let query = {
-        stock: req.query.stock,
-        like: req.query.like ? 1 : 0,
-        ip: req.ip,
-        price: null,  // Known after http call
-        newIp: false  // updated after DB check
-      };      
-      
-      //https://javascript.info/promise-chaining
-      getStockPrice(url)
-        .then(result => {
-          console.log("1st Promise done(http)", result);
-          // result - { stock: 'GOOG', price: 1267.8, likes: 0 }
-          //Save the stock price for later use
-          query.price = result.price;
-          return findOneStock(query);  // Returns a promise
-        }) //then 1
-      
-        .then(item => {
-          console.log("2nd Promise done(DB)", item);         
-          
-        
-          if(item) {
-            // If the stock is already in DB, check the IP and likes
-            if (query.like && item.ip && !item.ip.includes(query.ip)) {
-              // User liked, but allowed only one like per IP.
-              query.newIp = true;
-            }      
-          } else {
-            // A new Stock is being added. So IP must be saved too.
-            query.newIp = true;
+      // If here, we have got a valid stock quote. Now check our local DB for
+      // number of likes (if any).
+ 
+      //db.get_db_client().smembers(req.query.stock.toUpperCase(), (err, reply) => { 
+      db.new_connect().then( db => {
+        db.smembers(req.query.stock.toUpperCase(), (err, reply) => {
+          if (err) {
+            return; // Nothing to do. Likes will be 0.
           }
-          if (query.newIp) {
-            //return findAndUpdateOneStock(query);  // Returns a promise
-            return findAndUpdateOneStockV2(query);
+          console.log(reply);
+          let likes = reply.length;
+  
+          // Before sending response, increment the like count asynchrnously.
+          if (req.query.like) {
+            db.sadd([req.query.stock.toUpperCase(), req.ip], (err, reply) => {
+              // Nothing to do for asyn request.
+            });
           }
-          return item;
-        }) //then 2
-        
-        .then(item => {
-          console.log("3rd Promise done(DB)", item);
           
+          // Send the response
           res.send({
             stockData: {
-              "stock": query.stock,
-              "price": query.price,
-              "likes": item.ip ? item.ip.length:0,
+              "stock": result.stock,
+              "price": result.price,
+              "companyName": result.companyName,
+              "likes": likes,
             }
-          });
-        }) //then 3
-      
-        .catch(error => {
-          console.log("Catch Promise Error", error);
-          res.send(error);
-        }); //catch
+          });           
+  
+        }); //db.smembers
+      }); //db.new_connect()         
     }
-  });
 
+    function afterGettingStockQuotes(result) {
+
+      console.log("afterGettingStockQuotes-", result)
+      if (result == null) {
+        res.send("");
+        return;   // This is still required.
+      }
+      //res.send(JSON.stringify(result));      
+
+      let promiseArr = [];
+
+      db.new_connect().then( db => {
+
+        result.forEach(r => {
+          promiseArr.push( new Promise((resolve, reject) => {
+  
+            db.smembers(r.stock, (err, reply) => { 
+              if (err) {
+                reject();
+              }
+              console.log(reply);
+              let likes = reply.length;
+      
+              // Before sending response, increment the like count asynchrnously.
+              if (req.query.like) {
+                db.sadd([r.stock, req.ip], (err, reply) => {
+                  // Nothing to do.
+                });
+              }
+  
+              // Resolve the promise
+              resolve({
+                stockData: {
+                  "stock": r.stock,
+                  "price": r.price,
+                  "companyName": r.companyName,
+                  "likes": likes,
+                }
+              });           
+            }); //db         
+          }));  //promiseArr.push
+        }); //result.forEach     
+
+        Promise.all(promiseArr)
+        .then( values => {
+            console.log("Promise.all", JSON.stringify(values));
+            res.send(values);
+        })
+        .catch( err => {
+            console.log("Promise.all Failures", err);
+            res.send(null);
+        })
+
+      }); //db.new_connect().then
+    }
+
+    if (typeof req.query.stock === "string") {
+      stockApi.getStockPrice(req.query.stock.toUpperCase(), afterGettingStockQuote);
+    } else {
+      // Multiple Stock request. 
+      stockApi.getStockPrices(req.query.stock, afterGettingStockQuotes);
+
+    }
+
+    
+  });
 
     
 };
