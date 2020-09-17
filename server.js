@@ -4,6 +4,7 @@ var bodyParser = require("body-parser");
 //var cors = require("cors");
 var express = require("express");
 var apiRoutes = require("./routes/api.js");
+var db = require("./db.js");
 
 var app = express();
 
@@ -38,6 +39,27 @@ app.get("/", function (req, res) {
 // Install REST API Routes
 apiRoutes(app);
 
+
+// gracefully shutdown when receiving SIGTERM
+process
+  .on('SIGTERM', shutdown('SIGTERM'))
+  .on('SIGINT', shutdown('SIGINT'))
+  .on('uncaughtException', shutdown('uncaughtException'));
+
+
+function shutdown(signal) {
+  return (err) => {
+    db.close();
+    console.log(`In Shutdown - ${ signal }...`);
+    if (err) console.error(err.stack || err);
+    setTimeout(() => {
+      console.log('...waited 5s, exiting.');
+      process.exit(err ? 1 : 0);
+    }, 5000).unref();
+  };
+}
+
+// Now start the Express server
 var port_used = process.env.PORT || 3001;
 try {
   app.listen(port_used, function () {

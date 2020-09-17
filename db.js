@@ -52,11 +52,13 @@ exports.get_db_client = function() {
     return db_client;
 }
 
-exports.close = function(done) {
+exports.close = function() {
+    console.log("Starting to close DB Connection");
     if (db_client) {
         db_client.quit();
+        db_client = null;
         console.log("DB Connection closed");
     }
-    return done();
+    return;
 }
 
